@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ── Reset & base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0e0e0f;
+    font-family: 'Syne', sans-serif;
+    /* subtle noise-like grid texture via SVG data URI */
+    background-image:
+      radial-gradient(ellipse 80% 60% at 50% 0%, #1a1612 0%, transparent 70%),
+      url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='40' height='40' fill='none'/%3E%3Ccircle cx='1' cy='1' r='0.6' fill='%23ffffff05'/%3E%3C/svg%3E");
+  }
+
+  /* ── Shell ── */
+  .calc-shell {
+    width: 340px;
+    background: linear-gradient(160deg, #1c1a17 0%, #141210 100%);
+    border-radius: 28px;
+    padding: 28px 24px 24px;
+    border: 1px solid #2e2a23;
+    box-shadow:
+      0 0 0 1px #0a0908,
+      0 40px 80px rgba(0,0,0,0.7),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* gold accent strip at top */
+  .calc-shell::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 30px; right: 30px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #c8973d 30%, #e8b84b 50%, #c8973d 70%, transparent);
+    border-radius: 0 0 2px 2px;
+  }
+
+  /* brand label */
+  .brand {
+    font-family: 'Syne', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    color: #5a4f3a;
+    text-align: right;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    padding-right: 2px;
+  }
+
+  /* ── Display ── */
+  .display-wrap {
+    background: #0b0b0a;
+    border-radius: 16px;
+    padding: 20px 20px 16px;
+    margin-bottom: 20px;
+    border: 1px solid #222018;
+    position: relative;
+    overflow: hidden;
+    min-height: 110px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+
+  /* subtle amber glow behind numbers */
+  .display-wrap::after {
+    content: '';
+    position: absolute;
+    bottom: -20px; right: -20px;
+    width: 120px; height: 80px;
+    background: radial-gradient(ellipse, rgba(200,151,61,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .expression {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: #4a4236;
+    text-align: right;
+    min-height: 20px;
+    margin-bottom: 6px;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    direction: rtl;
+  }
+
+  .main-display {
+    font-family: 'DM Mono', monospace;
+    font-size: 44px;
+    font-weight: 300;
+    color: #f0e8d0;
+    text-align: right;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    min-height: 52px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity 0.08s ease;
+  }
+
+  .main-display.flash { opacity: 0.4; }
+
+  /* ── Button Grid ── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  /* ── Shared button base ── */
+  button {
+    cursor: pointer;
+    border: none;
+    outline: none;
+    border-radius: 14px;
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    height: 68px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.08s ease, background 0.1s ease, box-shadow 0.08s ease;
+    user-select: none;
+    position: relative;
+    overflow: hidden;
+  }
+
+  button:active { transform: scale(0.93); }
+
+  /* ripple on click */
+  button .ripple {
+    position: absolute;
+    border-radius: 50%;
+    transform: scale(0);
+    animation: rippleAnim 0.4s linear;
+    background: rgba(255,255,255,0.08);
+    pointer-events: none;
+  }
+  @keyframes rippleAnim {
+    to { transform: scale(4); opacity: 0; }
+  }
+
+  /* ── Number keys ── */
+  .btn-num {
+    background: #252219;
+    color: #d8cdb5;
+    border: 1px solid #302b20;
+    box-shadow: 0 2px 0 #100f0c, inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  .btn-num:hover { background: #2e2a1f; }
+
+  /* zero spans 2 cols */
+  .btn-zero {
+    grid-column: span 2;
+    border-radius: 14px;
+    justify-content: flex-start;
+    padding-left: 26px;
+    font-size: 18px;
+  }
+
+  /* ── Operator keys ── */
+  .btn-op {
+    background: #2a2218;
+    color: #c8973d;
+    border: 1px solid #3a2e1a;
+    box-shadow: 0 2px 0 #100f0c, inset 0 1px 0 rgba(200,151,61,0.08);
+    font-size: 22px;
+  }
+  .btn-op:hover { background: #332a1d; }
+  .btn-op.active-op {
+    background: #c8973d;
+    color: #1a1409;
+    border-color: #d4a843;
+  }
+
+  /* ── Equals ── */
+  .btn-eq {
+    background: linear-gradient(160deg, #c8973d 0%, #a87830 100%);
+    color: #1a1409;
+    border: 1px solid #b8873d;
+    box-shadow: 0 3px 0 #7a5820, inset 0 1px 0 rgba(255,255,255,0.18);
+    font-size: 24px;
+  }
+  .btn-eq:hover { background: linear-gradient(160deg, #d4a343 0%, #b8873d 100%); }
+
+  /* ── Function keys (AC, +/-, %) ── */
+  .btn-fn {
+    background: #1f1d18;
+    color: #8a7d62;
+    border: 1px solid #2a2720;
+    box-shadow: 0 2px 0 #100f0c, inset 0 1px 0 rgba(255,255,255,0.03);
+    font-size: 15px;
+    letter-spacing: 0.05em;
+  }
+  .btn-fn:hover { background: #262318; color: #a0917a; }
+
+  /* ── Separator ── */
+  .separator {
+    grid-column: span 4;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #2a2520 20%, #2a2520 80%, transparent);
+    margin: 2px 0;
+  }
+
+  /* ── Keyboard hint ── */
+  .hint {
+    margin-top: 18px;
+    font-size: 10px;
+    color: #3a342a;
+    text-align: center;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div class="calc-shell" role="application" aria-label="Calculadora">
+  <div class="brand">Calculus · I</div>
+
+  <div class="display-wrap" aria-live="polite" aria-atomic="true">
+    <div class="expression" id="expression" aria-label="Expresión"></div>
+    <div class="main-display" id="display" aria-label="Resultado">0</div>
+  </div>
+
+  <div class="grid" id="keypad">
+    <!-- Row 1: functions -->
+    <button class="btn-fn" data-action="clear"   aria-label="Limpiar todo">AC</button>
+    <button class="btn-fn" data-action="sign"    aria-label="Cambiar signo">+/−</button>
+    <button class="btn-fn" data-action="percent" aria-label="Porcentaje">%</button>
+    <button class="btn-op" data-action="op" data-value="÷" aria-label="Dividir">÷</button>
+
+    <!-- Row 2 -->
+    <button class="btn-num" data-action="digit" data-value="7">7</button>
+    <button class="btn-num" data-action="digit" data-value="8">8</button>
+    <button class="btn-num" data-action="digit" data-value="9">9</button>
+    <button class="btn-op"  data-action="op" data-value="×" aria-label="Multiplicar">×</button>
+
+    <!-- Row 3 -->
+    <button class="btn-num" data-action="digit" data-value="4">4</button>
+    <button class="btn-num" data-action="digit" data-value="5">5</button>
+    <button class="btn-num" data-action="digit" data-value="6">6</button>
+    <button class="btn-op"  data-action="op" data-value="−" aria-label="Restar">−</button>
+
+    <!-- Row 4 -->
+    <button class="btn-num" data-action="digit" data-value="1">1</button>
+    <button class="btn-num" data-action="digit" data-value="2">2</button>
+    <button class="btn-num" data-action="digit" data-value="3">3</button>
+    <button class="btn-op"  data-action="op" data-value="+" aria-label="Sumar">+</button>
+
+    <!-- Row 5 -->
+    <button class="btn-num btn-zero" data-action="digit" data-value="0">0</button>
+    <button class="btn-num" data-action="decimal" aria-label="Punto decimal">.</button>
+    <button class="btn-eq"  data-action="equals" aria-label="Igual">=</button>
+  </div>
+
+  <p class="hint">Teclado compatible · ESC = AC</p>
+</div>
+
+<script>
+/* ────────────────────────────────────────────────
+   Calculator engine
+   State machine: operand1, operator, operand2
+────────────────────────────────────────────────── */
+const display    = document.getElementById('display');
+const expression = document.getElementById('expression');
+
+let state = {
+  current:    '0',   // what's shown
+  previous:   null,  // first operand (string)
+  operator:   null,  // active operator symbol
+  justCalc:   false, // last action was =
+  resetNext:  false, // next digit replaces display
+};
+
+// ── Format large/small numbers nicely ──
+function formatNum(n) {
+  if (!isFinite(n)) return n > 0 ? 'Error +∞' : 'Error';
+  if (isNaN(n))     return 'Error';
+  // If integer-like, show as integer (up to 13 digits)
+  if (Number.isInteger(n) && Math.abs(n) < 1e13) {
+    return n.toLocaleString('es-EC', { maximumFractionDigits: 0 });
+  }
+  // Floating: cap at 10 significant figures, trim trailing zeros
+  let s = parseFloat(n.toPrecision(10)).toString();
+  // Comma-format the integer part
+  const [intPart, decPart] = s.split('.');
+  const fmtInt = parseInt(intPart).toLocaleString('es-EC');
+  return decPart ? `${fmtInt},${decPart}` : fmtInt;
+}
+
+// ── Parse display value (convert comma decimal) ──
+function parse(s) {
+  return parseFloat(s.replace(/\./g, '').replace(',', '.').replace(/\s/g, ''));
+}
+
+// ── Apply operation ──
+function compute(a, op, b) {
+  switch (op) {
+    case '+': return a + b;
+    case '−': return a - b;
+    case '×': return a * b;
+    case '÷': return b === 0 ? NaN : a / b;
+    default:  return b;
+  }
+}
+
+// ── Update screen ──
+function render(flash = false) {
+  // Shrink font for long numbers
+  const len = state.current.replace(/[\s,]/g, '').length;
+  display.style.fontSize = len > 10 ? '28px' : len > 7 ? '36px' : '44px';
+  display.textContent = state.current;
+
+  // Expression line
+  if (state.operator && state.previous !== null) {
+    expression.textContent = `${state.previous} ${state.operator}`;
+  } else {
+    expression.textContent = '';
+  }
+
+  // Highlight active operator button
+  document.querySelectorAll('.btn-op').forEach(btn => {
+    btn.classList.toggle('active-op',
+      state.operator && btn.dataset.value === state.operator && state.resetNext);
+  });
+
+  if (flash) {
+    display.classList.add('flash');
+    setTimeout(() => display.classList.remove('flash'), 120);
+  }
+}
+
+// ── Ripple effect ──
+function ripple(btn, e) {
+  const r = document.createElement('span');
+  r.className = 'ripple';
+  const rect = btn.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height) * 2;
+  r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - rect.left - size/2}px;top:${e.clientY - rect.top - size/2}px`;
+  btn.appendChild(r);
+  setTimeout(() => r.remove(), 400);
+}
+
+// ── Actions ──
+const actions = {
+  digit(v) {
+    if (state.resetNext || state.justCalc) {
+      state.current = v;
+      state.resetNext = false;
+      state.justCalc  = false;
+    } else {
+      // max 12 digits
+      const raw = state.current.replace(/[\s,.]/g, '');
+      if (raw.length >= 12) return;
+      state.current = state.current === '0' ? v : state.current + v;
+    }
+    render();
+  },
+
+  decimal() {
+    if (state.resetNext || state.justCalc) {
+      state.current = '0,';
+      state.resetNext = false;
+      state.justCalc  = false;
+    } else if (!state.current.includes(',')) {
+      state.current += ',';
+    }
+    render();
+  },
+
+  op(v) {
+    // If there's a pending operation, compute it first (chaining)
+    if (state.operator && !state.resetNext) {
+      const a = parse(state.previous);
+      const b = parse(state.current);
+      const result = compute(a, state.operator, b);
+      state.current = formatNum(result);
+    }
+    state.previous  = state.current;
+    state.operator  = v;
+    state.resetNext = true;
+    state.justCalc  = false;
+    render();
+  },
+
+  equals() {
+    if (!state.operator || state.previous === null) return;
+    const a = parse(state.previous);
+    const b = parse(state.current);
+    const result = compute(a, state.operator, b);
+    expression.textContent = `${state.previous} ${state.operator} ${state.current} =`;
+    state.current  = formatNum(result);
+    state.previous = null;
+    state.operator = null;
+    state.justCalc = true;
+    state.resetNext = false;
+    render(true);
+  },
+
+  clear() {
+    state = { current: '0', previous: null, operator: null, justCalc: false, resetNext: false };
+    render();
+    // Update AC/C label
+    clearBtn.textContent = 'AC';
+  },
+
+  sign() {
+    if (state.current === '0') return;
+    const n = parse(state.current);
+    state.current = formatNum(-n);
+    render();
+  },
+
+  percent() {
+    const n = parse(state.current);
+    if (state.operator && state.previous !== null) {
+      // % of previous operand (e.g. 200 + 10% = 200 + 20)
+      state.current = formatNum(parse(state.previous) * n / 100);
+    } else {
+      state.current = formatNum(n / 100);
+    }
+    render();
+  },
+};
+
+// ── Button clicks ──
+const clearBtn = document.querySelector('[data-action="clear"]');
+
+document.getElementById('keypad').addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  ripple(btn, e);
+
+  const { action, value } = btn.dataset;
+  if (action === 'digit') actions.digit(value);
+  else if (action === 'op') actions.op(value);
+  else if (actions[action]) actions[action](value);
+
+  // Switch AC ↔ C
+  clearBtn.textContent =
+    (state.current !== '0' || state.previous || state.operator) ? 'C' : 'AC';
+});
+
+// ── Keyboard support ──
+const keyMap = {
+  '0':'digit:0','1':'digit:1','2':'digit:2','3':'digit:3','4':'digit:4',
+  '5':'digit:5','6':'digit:6','7':'digit:7','8':'digit:8','9':'digit:9',
+  '.':'decimal',',':'decimal',
+  '+':'op:+','-':'op:−','*':'op:×','/':'op:÷',
+  'Enter':'equals','=':'equals',
+  'Backspace':'backspace','Escape':'clear','%':'percent',
+};
+
+document.addEventListener('keydown', e => {
+  const map = keyMap[e.key];
+  if (!map) return;
+  e.preventDefault();
+
+  if (map === 'backspace') {
+    // backspace: remove last char
+    if (state.current.length > 1) {
+      state.current = state.current.slice(0,-1);
+      if (state.current === '-') state.current = '0';
+    } else {
+      state.current = '0';
+    }
+    render();
+    return;
+  }
+
+  const [action, value] = map.split(':');
+  if (action === 'digit') actions.digit(value);
+  else if (action === 'op') actions.op(value);
+  else if (actions[action]) actions[action]();
+
+  clearBtn.textContent =
+    (state.current !== '0' || state.previous || state.operator) ? 'C' : 'AC';
+});
+
+// initial render
+render();
+</script>
+</body>
+</html>
